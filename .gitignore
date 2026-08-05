@@ -1,0 +1,38 @@
+# ---- Python / Flask ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.env
+instance/
+.flask_session/
+
+# ---- Node / React / Vite ----
+node_modules/
+dist/
+.vite/
+*.local
+
+# ---- ML / CV artifacts ----
+*.pt
+*.pth
+*.onnx
+*.h5
+runs/
+datasets/
+*.mp4
+*.avi
+*.mov
+
+# ---- OS / Editor junk ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- Env / secrets ----
+.env
+.env.local
+*.pem
