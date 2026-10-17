@@ -4,10 +4,15 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+backend/venv/
 env/
 *.env
 instance/
 .flask_session/
+*.db
+*.sqlite3
+backend/uploads/videos/*
+!backend/uploads/videos/.gitkeep
 
 # ---- Node / React / Vite ----
 node_modules/
@@ -15,16 +20,21 @@ dist/
 .vite/
 *.local
 
-# ---- ML / CV artifacts ----
+# ---- ML / CV artifacts & datasets ----
 *.pt
 *.pth
 *.onnx
 *.h5
+*.task
+*.npz
+*.zip
+backend/ml/drive-download-*
 runs/
 datasets/
 *.mp4
 *.avi
 *.mov
+*.MOV
 
 # ---- OS / Editor junk ----
 .DS_Store
