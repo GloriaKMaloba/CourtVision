@@ -17,10 +17,14 @@ def create_app(config_class=Config):
     from app.routes.auth import auth_bp
     from app.routes.video import video_bp
     from app.routes.health import health_bp
+    from app.routes.scout import scout_bp
+    from app.routes.admin import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(video_bp)
     app.register_blueprint(health_bp)
+    app.register_blueprint(scout_bp)
+    app.register_blueprint(admin_bp)
 
     # Ensure uploads directory exists
     upload_folder = Path(app.config["UPLOAD_FOLDER"])
