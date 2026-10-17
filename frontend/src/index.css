@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cv-orange: #D9622B;
+  --color-cv-orange-light: #F0925C;
+  --color-cv-navy: #1E2A47;
+  --color-cv-bg: #FAFAF9;
+  --color-cv-muted: #6B7280;
+  --color-cv-border: #E5E7EB;
+
+  --font-heading: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-cv-bg);
+  color: var(--color-cv-navy);
+  font-family: var(--font-sans);
+}
+
+.gradient-heading {
+  font-family: var(--font-heading);
+  background: linear-gradient(90deg, var(--color-cv-orange-light), var(--color-cv-orange));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
