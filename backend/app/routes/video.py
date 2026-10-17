@@ -176,6 +176,42 @@ def get_video(video_id: int):
     return jsonify({"video": data}), 200
 
 
+@video_bp.route("/<int:video_id>/status", methods=["GET"])
+@jwt_required
+def get_video_status(video_id: int):
+    video = db.session.get(Video, video_id)
+    if not video:
+        return jsonify({"error": "Video not found"}), 404
+
+    if g.current_user.role == "athlete" and video.user_id != g.current_user.id:
+        return jsonify({"error": "Unauthorized to access this video"}), 403
+
+    job = video.jobs.order_by(VideoProcessingJob.id.desc()).first()
+
+    stage_progress = {
+        "queued": 10,
+        "pose_landmark_extraction": 35,
+        "shot_detection": 65,
+        "biomechanical_metric_extraction": 85,
+        "done": 100,
+    }
+
+    status = video.status
+    stage = job.stage if job else "queued"
+    progress = 100 if status == "completed" else (0 if status == "failed" else stage_progress.get(stage, 25 if status == "processing" else 10))
+
+    return jsonify({
+        "video_id": video.id,
+        "status": status,
+        "stage": stage,
+        "progress_percent": progress,
+        "error_message": job.error_message if job else None,
+        "started_at": job.started_at.isoformat() if job and job.started_at else None,
+        "completed_at": job.completed_at.isoformat() if job and job.completed_at else None,
+        "shots_count": video.shots.count() if status == "completed" else 0,
+    }), 200
+
+
 @video_bp.route("/<int:video_id>/file", methods=["GET"])
 @jwt_required
 def serve_video_file(video_id: int):
