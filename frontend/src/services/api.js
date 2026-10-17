@@ -125,6 +125,10 @@ export const api = {
     return await request(`/videos/${id}`);
   },
 
+  async getVideoStatus(id) {
+    return await request(`/videos/${id}/status`);
+  },
+
   getVideoFileUrl(id) {
     const token = getAuthToken();
     return `${API_BASE_URL}/videos/${id}/file${token ? `?token=${encodeURIComponent(token)}` : ""}`;

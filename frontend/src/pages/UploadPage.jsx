@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { api } from "../services/api"
@@ -16,8 +16,48 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState("")
   const [uploadSuccess, setUploadSuccess] = useState(null)
+  const [processingStatus, setProcessingStatus] = useState(null)
 
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!uploadSuccess?.id) return
+
+    let isMounted = true
+    const checkStatus = async () => {
+      try {
+        const res = await api.getVideoStatus(uploadSuccess.id)
+        if (!isMounted) return
+        setProcessingStatus(res)
+
+        if (res.status === "completed") {
+          // Auto-redirect to results after short delay
+          setTimeout(() => {
+            if (isMounted) {
+              navigate(`/results?video_id=${uploadSuccess.id}`)
+            }
+          }, 1500)
+          return true
+        } else if (res.status === "failed") {
+          return true
+        }
+      } catch (err) {
+        console.error("Status polling error:", err)
+      }
+      return false
+    }
+
+    checkStatus()
+    const timer = setInterval(async () => {
+      const isDone = await checkStatus()
+      if (isDone) clearInterval(timer)
+    }, 1500)
+
+    return () => {
+      isMounted = false
+      clearInterval(timer)
+    }
+  }, [uploadSuccess?.id, navigate])
 
   const handleFileSelect = (selectedFile) => {
     if (!selectedFile) return
@@ -96,6 +136,7 @@ export default function UploadPage() {
     setTitle("")
     setNotes("")
     setUploadSuccess(null)
+    setProcessingStatus(null)
     setUploadProgress(0)
     setError("")
   }
@@ -142,50 +183,138 @@ export default function UploadPage() {
         {uploadSuccess ? (
           <div className="bg-white rounded-3xl p-8 border border-green-200 shadow-sm space-y-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 text-green-700 rounded-2xl flex items-center justify-center text-2xl font-bold">
-                ✓
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-bold ${
+                  processingStatus?.status === "completed"
+                    ? "bg-green-100 text-green-700"
+                    : processingStatus?.status === "failed"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-blue-100 text-blue-700 animate-pulse"
+                }`}
+              >
+                {processingStatus?.status === "completed" ? "✓" : processingStatus?.status === "failed" ? "✕" : "⚡"}
               </div>
               <div>
                 <h3 className="text-xl font-display font-bold text-cv-navy">
-                  Footage Uploaded & Registered!
+                  {processingStatus?.status === "completed"
+                    ? "Computer Vision Analysis Complete!"
+                    : processingStatus?.status === "failed"
+                    ? "Analysis Encountered an Error"
+                    : "Footage Uploaded & Processing..."}
                 </h3>
-                <p className="text-sm text-green-700 font-medium">
-                  Video ID #{uploadSuccess.id} is securely stored and queued for CV pipeline processing.
+                <p className="text-sm font-medium text-cv-navy/70">
+                  {processingStatus?.status === "completed"
+                    ? `Successfully detected ${processingStatus.shots_count || 0} shot(s). Redirecting to analytics...`
+                    : processingStatus?.status === "failed"
+                    ? (processingStatus.error_message || "Video processing failed.")
+                    : `Video ID #${uploadSuccess.id} is securely stored and running through the AI biomechanical extraction worker.`}
                 </p>
               </div>
             </div>
 
-            <div className="bg-[#FAFAF9] rounded-2xl p-5 border border-cv-navy/5 space-y-3">
-              <div className="flex justify-between text-sm py-1 border-b border-gray-200/60">
-                <span className="text-cv-navy/60">Title:</span>
-                <span className="font-semibold text-cv-navy">{uploadSuccess.title}</span>
-              </div>
-              <div className="flex justify-between text-sm py-1 border-b border-gray-200/60">
-                <span className="text-cv-navy/60">Original Filename:</span>
-                <span className="font-mono text-xs text-cv-navy/80">{uploadSuccess.original_filename}</span>
-              </div>
-              <div className="flex justify-between text-sm py-1 border-b border-gray-200/60">
-                <span className="text-cv-navy/60">File Size:</span>
-                <span className="font-semibold text-cv-navy">{uploadSuccess.file_size_mb} MB</span>
-              </div>
-              <div className="flex justify-between text-sm py-1">
-                <span className="text-cv-navy/60">Pipeline Status:</span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-                  ⏳ {uploadSuccess.status.toUpperCase()} (Queued for YOLOv8 & MediaPipe)
+            {/* Live Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-semibold text-cv-navy/70">
+                <span className="uppercase tracking-wider">
+                  {processingStatus?.status === "completed"
+                    ? "Completed"
+                    : processingStatus?.status === "failed"
+                    ? "Halted"
+                    : `Stage: ${(processingStatus?.stage || "queued").replace(/_/g, " ")}`}
                 </span>
+                <span className="font-mono text-cv-orange font-bold">
+                  {processingStatus?.progress_percent || 15}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 rounded-full ${
+                    processingStatus?.status === "completed"
+                      ? "bg-emerald-500"
+                      : processingStatus?.status === "failed"
+                      ? "bg-red-500"
+                      : "bg-cv-orange"
+                  }`}
+                  style={{ width: `${processingStatus?.progress_percent || 15}%` }}
+                />
               </div>
             </div>
 
-            <div className="border border-cv-orange/20 bg-orange-50/50 rounded-2xl p-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-cv-orange mb-2">
-                Automated CV Extraction Stages
-              </h4>
-              <ul className="text-xs text-cv-navy/70 space-y-1.5 list-disc list-inside">
-                <li>Frame Standardization & Bounding Box extraction via OpenCV</li>
-                <li>Ball trajectory tracking using fine-tuned YOLOv8</li>
-                <li>Joint landmarks & release frame estimation via MediaPipe</li>
-                <li>Random Forest 2-Point vs 3-Point Shot Classification</li>
-              </ul>
+            {/* Live Stepper of CV Stages */}
+            <div className="bg-[#FAFAF9] rounded-2xl p-5 border border-cv-navy/5 space-y-3 text-xs">
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+                  ✓
+                </span>
+                <span className="font-semibold text-cv-navy">Video Ingestion & File Validation</span>
+                <span className="text-[11px] text-emerald-600 ml-auto font-medium">Verified</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                    ["shot_detection", "biomechanical_metric_extraction", "done"].includes(processingStatus?.stage) || processingStatus?.status === "completed"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : processingStatus?.stage === "pose_landmark_extraction"
+                      ? "bg-blue-100 text-blue-800 animate-pulse"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {["shot_detection", "biomechanical_metric_extraction", "done"].includes(processingStatus?.stage) || processingStatus?.status === "completed" ? "✓" : "2"}
+                </span>
+                <span className="font-semibold text-cv-navy">MediaPipe Skeletal Landmark Tracking</span>
+                <span className="text-[11px] text-cv-navy/50 ml-auto">
+                  {["shot_detection", "biomechanical_metric_extraction", "done"].includes(processingStatus?.stage) || processingStatus?.status === "completed"
+                    ? "Done"
+                    : processingStatus?.stage === "pose_landmark_extraction"
+                    ? "Extracting..."
+                    : "Pending"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                    ["biomechanical_metric_extraction", "done"].includes(processingStatus?.stage) || processingStatus?.status === "completed"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : processingStatus?.stage === "shot_detection"
+                      ? "bg-blue-100 text-blue-800 animate-pulse"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {["biomechanical_metric_extraction", "done"].includes(processingStatus?.stage) || processingStatus?.status === "completed" ? "✓" : "3"}
+                </span>
+                <span className="font-semibold text-cv-navy">Shot Release & Trajectory Framing</span>
+                <span className="text-[11px] text-cv-navy/50 ml-auto">
+                  {["biomechanical_metric_extraction", "done"].includes(processingStatus?.stage) || processingStatus?.status === "completed"
+                    ? "Done"
+                    : processingStatus?.stage === "shot_detection"
+                    ? "Framing..."
+                    : "Pending"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                    processingStatus?.status === "completed" || processingStatus?.stage === "done"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : processingStatus?.stage === "biomechanical_metric_extraction"
+                      ? "bg-blue-100 text-blue-800 animate-pulse"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {processingStatus?.status === "completed" || processingStatus?.stage === "done" ? "✓" : "4"}
+                </span>
+                <span className="font-semibold text-cv-navy">Release Angle & Jump Height Calculation</span>
+                <span className="text-[11px] text-cv-navy/50 ml-auto">
+                  {processingStatus?.status === "completed" || processingStatus?.stage === "done"
+                    ? "Done"
+                    : processingStatus?.stage === "biomechanical_metric_extraction"
+                    ? "Computing..."
+                    : "Pending"}
+                </span>
+              </div>
             </div>
 
             <div className="flex gap-4 pt-2">
@@ -195,12 +324,21 @@ export default function UploadPage() {
               >
                 Upload Another Video
               </button>
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="flex-1 bg-cv-orange text-white py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition shadow-xs cursor-pointer"
-              >
-                Go to Dashboard
-              </button>
+              {processingStatus?.status === "completed" ? (
+                <button
+                  onClick={() => navigate(`/results?video_id=${uploadSuccess.id}`)}
+                  className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>View Shot Analytics Now ➔</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="flex-1 bg-cv-orange text-white py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition shadow-xs cursor-pointer"
+                >
+                  Go to Dashboard
+                </button>
+              )}
             </div>
           </div>
         ) : (
