@@ -142,6 +142,39 @@ export const api = {
     });
   },
 
+  // Scout
+  async getScoutAthletes(params = {}) {
+    const query = new URLSearchParams();
+    if (params.county) query.append("county", params.county);
+    if (params.position) query.append("position", params.position);
+    if (params.search) query.append("search", params.search);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return await request(`/scout/athletes${queryString}`);
+  },
+
+  async getScoutAthlete(id) {
+    return await request(`/scout/athletes/${id}`);
+  },
+
+  // Admin
+  async getAdminStats() {
+    return await request("/admin/stats");
+  },
+
+  async getAdminUsers(params = {}) {
+    const query = new URLSearchParams();
+    if (params.role) query.append("role", params.role);
+    if (params.search) query.append("search", params.search);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return await request(`/admin/users${queryString}`);
+  },
+
+  async deleteAdminUser(id) {
+    return await request(`/admin/users/${id}`, {
+      method: "DELETE",
+    });
+  },
+
   // Health
   async getHealth() {
     return await request("/health");
