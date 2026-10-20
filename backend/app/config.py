@@ -26,6 +26,13 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Engine options for cloud PostgreSQL connection resilience
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,  # Auto-reconnect if database closed idle connection
+        "pool_recycle": 280,    # Recycle connections before cloud firewalls drop them
+        "pool_timeout": 20,
+    }
+
     # Video uploads
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", str(BASE_DIR / "uploads" / "videos"))
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 500 * 1024 * 1024)) # 500 MB
