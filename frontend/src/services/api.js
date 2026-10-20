@@ -125,6 +125,10 @@ export const api = {
     return await request(`/videos/${id}`);
   },
 
+  async getVideoResults(id) {
+    return await request(`/videos/${id}/results`);
+  },
+
   async getVideoStatus(id) {
     return await request(`/videos/${id}/status`);
   },
@@ -146,12 +150,22 @@ export const api = {
     });
   },
 
+  // Athletes
+  async getAthleteMetrics(athleteId = "me") {
+    return await request(`/athletes/${athleteId}/metrics`);
+  },
+
   // Scout
   async getScoutAthletes(params = {}) {
     const query = new URLSearchParams();
     if (params.county) query.append("county", params.county);
     if (params.position) query.append("position", params.position);
     if (params.search) query.append("search", params.search);
+    if (params.min_jump) query.append("min_jump", params.min_jump);
+    if (params.min_angle) query.append("min_angle", params.min_angle);
+    if (params.max_angle) query.append("max_angle", params.max_angle);
+    if (params.page) query.append("page", params.page);
+    if (params.per_page) query.append("per_page", params.per_page);
     const queryString = query.toString() ? `?${query.toString()}` : "";
     return await request(`/scout/athletes${queryString}`);
   },

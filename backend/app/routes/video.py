@@ -176,6 +176,106 @@ def get_video(video_id: int):
     return jsonify({"video": data}), 200
 
 
+@video_bp.route("/<int:video_id>/results", methods=["GET"])
+@jwt_required
+def get_video_results(video_id: int):
+    video = db.session.get(Video, video_id)
+    if not video:
+        return jsonify({"error": "Video not found"}), 404
+
+    # Permission check: athlete can only view their own
+    if g.current_user.role == "athlete" and video.user_id != g.current_user.id:
+        return jsonify({"error": "Unauthorized to access this video"}), 403
+
+    from app.models.metrics import ShotAnalysis
+    import numpy as np
+
+    shots = video.shots.order_by(ShotAnalysis.shot_index.asc()).all()
+    shots_data = [s.to_dict() for s in shots]
+
+    angles = [
+        s["metric"]["shooting_angle_deg"]
+        for s in shots_data
+        if s.get("metric") and s["metric"].get("shooting_angle_deg") is not None
+    ]
+    jumps = [
+        s["metric"]["jump_height_cm"]
+        for s in shots_data
+        if s.get("metric") and s["metric"].get("jump_height_cm") is not None
+    ]
+    releases = [
+        s["metric"]["release_time_sec"]
+        for s in shots_data
+        if s.get("metric") and s["metric"].get("release_time_sec") is not None
+    ]
+    confs = [
+        s["classification_confidence"]
+        for s in shots_data
+        if s.get("classification_confidence") is not None
+    ]
+
+    two_pts = [s for s in shots_data if s.get("shot_type") == "two_point"]
+    three_pts = [s for s in shots_data if s.get("shot_type") == "three_point"]
+    total = len(shots_data)
+
+    angle_std = round(float(np.std(angles, ddof=1)), 2) if len(angles) > 1 else 0.0
+    jump_std = round(float(np.std(jumps, ddof=1)), 2) if len(jumps) > 1 else 0.0
+    rel_std = round(float(np.std(releases, ddof=1)), 2) if len(releases) > 1 else 0.0
+
+    if angle_std <= 2.5:
+        consistency_rating = "Elite Consistency"
+    elif angle_std <= 4.0:
+        consistency_rating = "High Consistency"
+    elif angle_std <= 6.0:
+        consistency_rating = "Moderate Consistency"
+    else:
+        consistency_rating = "Developing Consistency"
+
+    summary = {
+        "total_shots": total,
+        "two_pointers": len(two_pts),
+        "three_pointers": len(three_pts),
+        "two_point_pct": round((len(two_pts) / total) * 100, 1) if total else 0.0,
+        "three_point_pct": round((len(three_pts) / total) * 100, 1) if total else 0.0,
+        "mean_confidence": round(float(np.mean(confs)), 3) if confs else None,
+        "shooting_angle": {
+            "mean": round(float(np.mean(angles)), 1) if angles else None,
+            "std": angle_std,
+            "min": round(float(min(angles)), 1) if angles else None,
+            "max": round(float(max(angles)), 1) if angles else None,
+            "consistency_rating": consistency_rating if total else "No Shots",
+        },
+        "jump_height_cm": {
+            "mean": round(float(np.mean(jumps)), 1) if jumps else None,
+            "std": jump_std,
+            "min": round(float(min(jumps)), 1) if jumps else None,
+            "max": round(float(max(jumps)), 1) if jumps else None,
+        },
+        "release_time_sec": {
+            "mean": round(float(np.mean(releases)), 2) if releases else None,
+            "std": rel_std,
+        },
+    }
+
+    job = video.jobs.order_by(VideoProcessingJob.id.desc()).first()
+
+    return jsonify({
+        "video": {
+            "id": video.id,
+            "user_id": video.user_id,
+            "athlete_id": video.athlete_id,
+            "title": video.title,
+            "status": video.status,
+            "duration_seconds": video.duration_seconds,
+            "fps": video.fps,
+            "created_at": video.created_at.isoformat() if video.created_at else None,
+        },
+        "latest_job": job.to_dict() if job else None,
+        "summary": summary,
+        "shots": shots_data,
+    }), 200
+
+
 @video_bp.route("/<int:video_id>/status", methods=["GET"])
 @jwt_required
 def get_video_status(video_id: int):

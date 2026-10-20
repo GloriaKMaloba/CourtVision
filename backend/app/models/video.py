@@ -6,7 +6,7 @@ class Video(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    athlete_id = db.Column(db.Integer, db.ForeignKey("athlete_profiles.id", ondelete="SET NULL"), nullable=True)
+    athlete_id = db.Column(db.Integer, db.ForeignKey("athlete_profiles.id", ondelete="SET NULL"), nullable=True, index=True)
     title = db.Column(db.String(200), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
     stored_filename = db.Column(db.String(255), unique=True, nullable=False)
@@ -17,7 +17,7 @@ class Video(db.Model):
     fps = db.Column(db.Float, nullable=True)
     width = db.Column(db.Integer, nullable=True)
     height = db.Column(db.Integer, nullable=True)
-    status = db.Column(db.String(30), nullable=False, default="pending")  # pending, processing, completed, failed
+    status = db.Column(db.String(30), nullable=False, default="pending", index=True)  # pending, processing, completed, failed
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)

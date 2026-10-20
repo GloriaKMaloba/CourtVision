@@ -1,22 +1,36 @@
 import { useState, useEffect, useRef } from "react"
-import { useSearchParams, Link, useNavigate } from "react-router-dom"
+import { useSearchParams, Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { api } from "../services/api"
 
 export default function ResultsPage() {
-  const { user, isAuthenticated } = useAuth()
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const videoId = searchParams.get("video_id")
+  const { isAuthenticated } = useAuth()
 
   const [video, setVideo] = useState(null)
   const [videosList, setVideosList] = useState([])
   const [selectedShot, setSelectedShot] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [reprocessing, setReprocessing] = useState(false)
   const [error, setError] = useState("")
+  const [reprocessing, setReprocessing] = useState(false)
 
   const videoRef = useRef(null)
+
+  const fetchResults = async (id) => {
+    try {
+      const res = await api.getVideoResults(id)
+      return {
+        ...res.video,
+        shots: res.shots,
+        summary: res.summary,
+        latest_job: res.latest_job,
+      }
+    } catch {
+      const res = await api.getVideo(id)
+      return res.video
+    }
+  }
 
   useEffect(() => {
     async function loadData() {
@@ -25,10 +39,10 @@ export default function ResultsPage() {
       setError("")
       try {
         if (videoId) {
-          const res = await api.getVideo(videoId)
-          setVideo(res.video)
-          if (res.video.shots && res.video.shots.length > 0) {
-            setSelectedShot(res.video.shots[0])
+          const v = await fetchResults(videoId)
+          setVideo(v)
+          if (v.shots && v.shots.length > 0) {
+            setSelectedShot(v.shots[0])
           }
         } else {
           // If no video_id in URL, fetch list and show the first completed one
@@ -36,10 +50,10 @@ export default function ResultsPage() {
           setVideosList(listRes.videos || [])
           const firstCompleted = listRes.videos?.find((v) => v.status === "completed") || listRes.videos?.[0]
           if (firstCompleted) {
-            const detailRes = await api.getVideo(firstCompleted.id)
-            setVideo(detailRes.video)
-            if (detailRes.video.shots && detailRes.video.shots.length > 0) {
-              setSelectedShot(detailRes.video.shots[0])
+            const v = await fetchResults(firstCompleted.id)
+            setVideo(v)
+            if (v.shots && v.shots.length > 0) {
+              setSelectedShot(v.shots[0])
             }
           }
         }
@@ -70,7 +84,8 @@ export default function ResultsPage() {
           const refreshed = await api.getVideo(video.id)
           if (refreshed.video.status === "completed") {
             clearInterval(checkTimer)
-            setVideo(refreshed.video)
+            const v = await fetchResults(video.id)
+            setVideo(v)
             setReprocessing(false)
           }
         } catch {
@@ -139,6 +154,14 @@ export default function ResultsPage() {
   const shots = video.shots || []
   const summary = video.summary
 
+  const avgAngle = summary?.shooting_angle?.mean ?? summary?.avg_shooting_angle
+  const stdAngle = summary?.shooting_angle?.std
+  const consistencyRating = summary?.shooting_angle?.consistency_rating
+
+  const avgJump = summary?.jump_height_cm?.mean ?? summary?.avg_jump_height
+  const maxJump = summary?.jump_height_cm?.max ?? summary?.max_jump_height
+  const stdJump = summary?.jump_height_cm?.std
+
   return (
     <div className="min-h-[calc(100vh-80px)] py-10 px-4 sm:px-6 lg:px-8 bg-[#FAFAF9]">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -162,8 +185,8 @@ export default function ResultsPage() {
             <h1 className="text-2xl sm:text-3xl font-display font-bold text-cv-navy mt-1">
               {video.title}
             </h1>
-            <p className="text-sm text-cv-navy/60 mt-1">
-              File: <span className="font-mono text-xs text-cv-navy/80">{video.original_filename}</span> • {video.file_size_mb} MB • Duration: {video.duration_seconds ? `${Math.round(video.duration_seconds)}s` : "N/A"}
+            <p className="text-xs text-cv-navy/60 mt-1">
+              File: {video.original_filename} • Duration: {video.duration_seconds ? `${video.duration_seconds.toFixed(1)}s` : "—"} • FPS: {video.fps ? Math.round(video.fps) : 30}
             </p>
           </div>
 
@@ -171,9 +194,9 @@ export default function ResultsPage() {
             <button
               onClick={handleReprocess}
               disabled={reprocessing}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-cv-navy/20 text-cv-navy hover:bg-cv-navy/5 transition disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-cv-navy/20 text-cv-navy hover:bg-gray-50 transition disabled:opacity-50"
             >
-              {reprocessing ? "Reprocessing..." : "⚡ Re-run Pipeline"}
+              {reprocessing ? "Reprocessing..." : "↻ Reprocess CV Pipeline"}
             </button>
             <Link
               to="/dashboard"
@@ -184,7 +207,7 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* Aggregate Summary Cards */}
+        {/* Aggregate Summary Cards with Consistency Badges */}
         {summary && (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
@@ -194,27 +217,38 @@ export default function ResultsPage() {
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
-              <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Release Angle</p>
+              <div className="flex justify-between items-start">
+                <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Release Angle</p>
+                {consistencyRating && consistencyRating !== "No Data" && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {consistencyRating}
+                  </span>
+                )}
+              </div>
               <p className="text-2xl font-bold font-display text-cv-orange mt-1">
-                {summary.avg_shooting_angle ? `${summary.avg_shooting_angle}°` : "N/A"}
+                {avgAngle ? `${avgAngle}°` : "N/A"}
               </p>
-              <p className="text-xs text-cv-navy/60 mt-1">Elbow release angle</p>
+              <p className="text-xs text-cv-navy/60 mt-1">
+                {stdAngle !== undefined ? `Consistency: ±${stdAngle}°` : "Elbow release angle"}
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
               <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Vertical Leap</p>
               <p className="text-2xl font-bold font-display text-cv-navy mt-1">
-                {summary.avg_jump_height ? `${summary.avg_jump_height} cm` : "N/A"}
+                {avgJump ? `${avgJump} cm` : "N/A"}
               </p>
-              <p className="text-xs text-cv-navy/60 mt-1">Hip elevation from baseline</p>
+              <p className="text-xs text-cv-navy/60 mt-1">
+                {stdJump !== undefined ? `Variance: ±${stdJump} cm` : "Hip elevation from baseline"}
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
               <p className="text-xs font-semibold uppercase text-cv-navy/50">Max Jump Height</p>
               <p className="text-2xl font-bold font-display text-cv-navy mt-1">
-                {summary.max_jump_height ? `${summary.max_jump_height} cm` : "N/A"}
+                {maxJump ? `${maxJump} cm` : "N/A"}
               </p>
-              <p className="text-xs text-cv-navy/60 mt-1">Highest shot peak</p>
+              <p className="text-xs text-cv-navy/60 mt-1">Highest shot leap recorded</p>
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs col-span-2 lg:col-span-1">
@@ -222,7 +256,9 @@ export default function ResultsPage() {
               <p className="text-2xl font-bold font-display text-cv-navy mt-1">
                 {summary.two_pointers} <span className="text-xs font-medium text-cv-navy/60">2pt</span> / {summary.three_pointers} <span className="text-xs font-medium text-cv-navy/60">3pt</span>
               </p>
-              <p className="text-xs text-cv-navy/60 mt-1">XGBoost Classification</p>
+              <p className="text-xs text-cv-navy/60 mt-1">
+                {summary.mean_confidence ? `${Math.round(summary.mean_confidence * 100)}% XGB Confidence` : "XGBoost Classification"}
+              </p>
             </div>
           </div>
         )}
@@ -308,8 +344,6 @@ export default function ResultsPage() {
                 {shots.map((s) => {
                   const m = s.metric || {}
                   const isSelected = selectedShot?.id === s.id
-                  const isThree = s.shot_type === "three_point"
-
                   return (
                     <div
                       key={s.id}
@@ -320,45 +354,49 @@ export default function ResultsPage() {
                       className={`p-5 rounded-2xl border transition cursor-pointer ${
                         isSelected
                           ? "bg-white border-cv-orange shadow-md ring-2 ring-cv-orange/20"
-                          : "bg-white border-cv-navy/10 hover:border-cv-orange/40"
+                          : "bg-white border-cv-navy/10 hover:border-cv-navy/30 shadow-2xs"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-display font-bold text-base text-cv-navy">
+                          <span className="font-display font-bold text-sm text-cv-navy">
                             Shot #{s.shot_index}
                           </span>
-                          <span className="text-xs text-cv-navy/50 font-mono">
-                            @{s.timestamp_release}s
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                              s.shot_type === "three_point"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}
+                          >
+                            {s.shot_type === "three_point" ? "3-Pointer" : "2-Pointer"}
                           </span>
                         </div>
-
-                        <span
-                          className={`text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
-                            isThree
-                              ? "bg-blue-50 text-blue-800 border-blue-200"
-                              : "bg-amber-50 text-amber-800 border-amber-200"
-                          }`}
-                        >
-                          {isThree ? "3-Point Attempt" : "2-Point Attempt"} ({Math.round((s.classification_confidence || 0.9) * 100)}%)
+                        <span className="text-xs text-cv-navy/50">
+                          {s.timestamp_release ? `Release @ ${s.timestamp_release}s` : ""}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-gray-100">
-                        <div className="bg-[#FAFAF9] p-2.5 rounded-xl">
-                          <span className="text-[11px] text-cv-navy/60 block font-medium">Shooting Angle</span>
-                          <span className="text-lg font-bold font-display text-cv-orange">
-                            {m.shooting_angle_deg ? `${m.shooting_angle_deg}°` : "N/A"}
-                          </span>
-                          <span className="text-[10px] text-cv-navy/50 block">Elbow angle</span>
+                      <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 text-xs">
+                        <div>
+                          <p className="text-cv-navy/50 font-medium">Release Angle</p>
+                          <p className="text-sm font-bold text-cv-orange mt-0.5">
+                            {m.shooting_angle_deg !== undefined ? `${m.shooting_angle_deg}°` : "—"}
+                          </p>
                         </div>
-
-                        <div className="bg-[#FAFAF9] p-2.5 rounded-xl">
-                          <span className="text-[11px] text-cv-navy/60 block font-medium">Vertical Leap</span>
-                          <span className="text-lg font-bold font-display text-cv-navy">
-                            {m.jump_height_cm ? `${m.jump_height_cm} cm` : "N/A"}
-                          </span>
-                          <span className="text-[10px] text-cv-navy/50 block">Jump elevation</span>
+                        <div>
+                          <p className="text-cv-navy/50 font-medium">Jump Height</p>
+                          <p className="text-sm font-bold text-cv-navy mt-0.5">
+                            {m.jump_height_cm !== undefined ? `${m.jump_height_cm} cm` : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-cv-navy/50 font-medium">Confidence</p>
+                          <p className="text-sm font-bold text-cv-navy mt-0.5">
+                            {s.classification_confidence
+                              ? `${Math.round(s.classification_confidence * 100)}%`
+                              : "—"}
+                          </p>
                         </div>
                       </div>
                     </div>
