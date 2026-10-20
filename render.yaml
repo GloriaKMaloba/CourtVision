@@ -24,11 +24,9 @@ services:
         value: 3.11.9
 
   # 2. Frontend React Web Application
-  - type: web
+  - type: static_site
     name: courtvision-frontend
-    env: static
     rootDir: frontend
-    plan: free
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     routes:
