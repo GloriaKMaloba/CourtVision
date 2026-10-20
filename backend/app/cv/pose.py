@@ -18,8 +18,16 @@ ML_DIR = Path(__file__).resolve().parent.parent.parent / "ml"
 MODEL_PATH = str(ML_DIR / "pose_landmarker_full.task")
 
 def make_landmarker():
+    model_file = Path(MODEL_PATH)
+    if not model_file.exists():
+        import urllib.request
+        model_url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task"
+        print(f"Downloading MediaPipe model asset from {model_url}...")
+        model_file.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(model_url, str(model_file))
+
     opts = mp.tasks.vision.PoseLandmarkerOptions(
-        base_options=mp.tasks.BaseOptions(model_asset_path=MODEL_PATH),
+        base_options=mp.tasks.BaseOptions(model_asset_path=str(model_file)),
         running_mode=mp.tasks.vision.RunningMode.VIDEO,
         num_poses=1,
     )

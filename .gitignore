@@ -36,6 +36,10 @@ datasets/
 *.mov
 *.MOV
 
+# Explicitly track required production ML models (< 25MB)
+!backend/ml/pose_landmarker_full.task
+!backend/ml/best.pt
+
 # ---- OS / Editor junk ----
 .DS_Store
 Thumbs.db
