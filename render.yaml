@@ -23,9 +23,10 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
 
-  # 2. Frontend React Web Application
-  - type: static_site
+  # 2. Frontend React Web Application (Static CDN - always free)
+  - type: web
     name: courtvision-frontend
+    env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
