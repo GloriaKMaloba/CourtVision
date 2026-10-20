@@ -193,6 +193,7 @@ def get_video_status(video_id: int):
         "pose_landmark_extraction": 35,
         "shot_detection": 65,
         "biomechanical_metric_extraction": 85,
+        "metrics_persistence": 90,
         "done": 100,
     }
 

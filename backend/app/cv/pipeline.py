@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from datetime import datetime, timezone
-from app.models.user import db
+from app.models.user import db, AthleteProfile
 from app.models.video import Video, VideoProcessingJob
 from app.models.metrics import ShotAnalysis, PerformanceMetric
 from app.cv.pose import extract_landmarks, find_shots_in_video
@@ -11,11 +11,11 @@ from app.cv.classifier import classify_shot
 def process_video_pipeline(video_id: int) -> dict:
     """
     Executes the end-to-end computer vision processing on an uploaded video:
-    1. Landmark extraction using MediaPipe
-    2. Automatic shot detection and release framing
-    3. 15-feature biomechanical extraction (jump peak, elbow angle, lean, etc.)
+    1. Landmark extraction using MediaPipe Pose
+    2. Automatic shot detection and temporal framing
+    3. Biomechanical feature extraction (15 tabular features)
     4. XGBoost shot classification (2-point vs 3-point)
-    5. Persistence to PostgreSQL/SQLite database
+    5. Persistence of discrete shots and performance metrics to database
     """
     video = db.session.get(Video, video_id)
     if not video:
@@ -49,21 +49,27 @@ def process_video_pipeline(video_id: int) -> dict:
         found_shots = find_shots_in_video(lms, fps)
 
         # Clear any prior analyses for idempotent re-runs
-        video.shots.delete()
-        db.session.commit()
+        for prior_shot in video.shots.all():
+            db.session.delete(prior_shot)
+        db.session.flush()
 
         # Determine athlete torso length in cm for absolute jump height calibration
-        torso_cm = 48.0  # standard youth baseline (48 cm)
-        if video.uploader and video.uploader.athlete_profile and video.uploader.athlete_profile.height_cm:
-            # Torso typically accounts for ~28% of standing height
-            torso_cm = round(video.uploader.athlete_profile.height_cm * 0.28, 1)
+        torso_cm = 48.0  # youth/default baseline (48 cm)
+        athlete_profile = None
+        if video.athlete_id:
+            athlete_profile = db.session.get(AthleteProfile, video.athlete_id)
+        elif video.uploader and video.uploader.athlete_profile:
+            athlete_profile = video.uploader.athlete_profile
 
-        analyzed_shots = []
+        if athlete_profile and athlete_profile.height_cm:
+            # Torso accounts for ~28% of standing height
+            torso_cm = round(athlete_profile.height_cm * 0.28, 1)
 
         # Step 3: Biomechanical feature extraction & classification per shot
         job.stage = "biomechanical_metric_extraction"
         db.session.commit()
 
+        parsed_shot_events = []
         for idx, shot_info in enumerate(found_shots, start=1):
             rel_t = shot_info["release_t"]
             peak_t = shot_info["peak_t"]
@@ -74,7 +80,7 @@ def process_video_pipeline(video_id: int) -> dict:
 
             feats, cov = compute_features(lms[a:b], fps, rel_t - (a / fps))
 
-            # If tracking was lost, fallback to defaults
+            # If tracking was degraded, use safe defaults
             elbow_angle = feats.get("elbow_angle")
             if elbow_angle is None or np.isnan(elbow_angle):
                 elbow_angle = 125.0
@@ -98,35 +104,60 @@ def process_video_pipeline(video_id: int) -> dict:
             t_release = round(rel_t, 2)
             t_end = round(peak_t + 0.6, 2)
 
+            wrist_rel = feats.get("wrist_above_shoulder", 0.65)
+            if wrist_rel is None or np.isnan(wrist_rel):
+                wrist_rel = 0.65
+
+            parsed_shot_events.append({
+                "shot_index": idx,
+                "timestamp_start": t_start,
+                "timestamp_release": t_release,
+                "timestamp_end": t_end,
+                "shot_type": shot_type,
+                "confidence": conf,
+                "shooting_angle_deg": shooting_angle,
+                "jump_height_cm": jump_cm,
+                "release_time_sec": round(t_dip, 2),
+                "release_height_relative": round(float(wrist_rel), 2),
+            })
+
+        # Step 4: Persist shots and performance metrics
+        job.stage = "metrics_persistence"
+        db.session.commit()
+
+        analyzed_shots = []
+        for shot_data in parsed_shot_events:
             shot_analysis = ShotAnalysis(
                 video_id=video.id,
-                shot_index=idx,
-                timestamp_start=t_start,
-                timestamp_release=t_release,
-                timestamp_end=t_end,
-                shot_type=shot_type,
-                classification_confidence=conf,
+                shot_index=shot_data["shot_index"],
+                timestamp_start=shot_data["timestamp_start"],
+                timestamp_release=shot_data["timestamp_release"],
+                timestamp_end=shot_data["timestamp_end"],
+                shot_type=shot_data["shot_type"],
+                classification_confidence=shot_data["confidence"],
             )
             db.session.add(shot_analysis)
             db.session.flush()
 
             metric = PerformanceMetric(
                 shot_analysis_id=shot_analysis.id,
-                shooting_angle_deg=shooting_angle,
-                jump_height_cm=jump_cm,
-                release_time_sec=round(t_dip, 2),
-                release_height_relative=round(float(feats.get("wrist_above_shoulder", 0.65)), 2),
+                shooting_angle_deg=shot_data["shooting_angle_deg"],
+                jump_height_cm=shot_data["jump_height_cm"],
+                release_time_sec=shot_data["release_time_sec"],
+                release_height_relative=shot_data["release_height_relative"],
             )
             db.session.add(metric)
+
             analyzed_shots.append({
-                "shot_number": idx,
-                "release_time": t_release,
-                "shot_type": shot_type,
-                "confidence": conf,
-                "shooting_angle_deg": shooting_angle,
-                "jump_height_cm": jump_cm,
+                "shot_number": shot_data["shot_index"],
+                "release_time": shot_data["timestamp_release"],
+                "shot_type": shot_data["shot_type"],
+                "confidence": shot_data["confidence"],
+                "shooting_angle_deg": shot_data["shooting_angle_deg"],
+                "jump_height_cm": shot_data["jump_height_cm"],
             })
 
+        # Finalize job status
         video.status = "completed"
         job.status = "completed"
         job.stage = "done"
