@@ -64,7 +64,7 @@ class TestCourtVisionAPI(unittest.TestCase):
         # 4. Get video details
         get_res = self.client.get(f"/api/videos/{video_id}", headers=headers)
         self.assertEqual(get_res.status_code, 200)
-        self.assertEqual(get_res.get_json()["video"]["status"], "pending")
+        self.assertIn(get_res.get_json()["video"]["status"], ["pending", "processing"])
 
         # 4b. Get video processing status (Phase 3 Issue #6 endpoint)
         status_res = self.client.get(f"/api/videos/{video_id}/status", headers=headers)

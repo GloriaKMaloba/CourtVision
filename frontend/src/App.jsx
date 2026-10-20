@@ -15,6 +15,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<LoginPage defaultRegister={true} />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />

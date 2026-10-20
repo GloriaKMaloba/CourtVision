@@ -8,6 +8,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import create_app
+from app.config import Config
 from app.models.user import db, User, AthleteProfile
 from app.models.video import Video, VideoProcessingJob
 from app.models.metrics import ShotAnalysis, PerformanceMetric
@@ -97,9 +98,13 @@ class TestShotClassifier(unittest.TestCase):
 
 class TestMetricsPersistence(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
-        self.app.config["TESTING"] = True
-        self.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+        class TestConfig(Config):
+            TESTING = True
+            SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+
+        self.app = create_app(TestConfig)
+
+
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
