@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 
@@ -24,8 +24,18 @@ const POSITIONS = [
   "Center (C)",
 ]
 
-export default function LoginPage() {
-  const [isRegister, setIsRegister] = useState(false)
+export default function LoginPage({ defaultRegister = false }) {
+  const location = useLocation()
+  const isRegisterRoute = defaultRegister || location.pathname === "/register" || new URLSearchParams(location.search).get("mode") === "register"
+  const [isRegister, setIsRegister] = useState(isRegisterRoute)
+
+  useEffect(() => {
+    if (defaultRegister || location.pathname === "/register" || new URLSearchParams(location.search).get("mode") === "register") {
+      setIsRegister(true)
+    } else if (location.pathname === "/login" && !new URLSearchParams(location.search).get("mode")) {
+      setIsRegister(false)
+    }
+  }, [location, defaultRegister])
   const [role, setRole] = useState("athlete") // 'athlete' or 'scout'
   const [formData, setFormData] = useState({
     email: "",
@@ -45,7 +55,6 @@ export default function LoginPage() {
 
   const { login, register } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const from = location.state?.from?.pathname || "/dashboard"
 
   const handleChange = (e) => {

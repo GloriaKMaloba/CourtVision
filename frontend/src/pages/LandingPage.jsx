@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import cvLogoWatermark from "../assets/cv-logo-hero-banner.png";
 
-
-
 // Small reusable shot-arc icon — used as the visual thread across metric cards
 function ArcIcon({ variant = "angle", className = "" }) {
   if (variant === "angle") {
@@ -73,66 +71,46 @@ const steps = [
   { n: "04", title: "Score", detail: "Metrics land on the athlete's dashboard." },
 ];
 
-const problemPoints = [
-  { stat: "0", label: "scouts on the ground in most counties, most of the year" },
-  { stat: "38", label: "cognitive biases shown to sway subjective talent calls" },
-  { stat: "1", label: "county reached this edition — down from four" },
-];
-
 export default function Landing() {
   return (
     <div className="bg-[#FAFAF9] text-cv-navy">
       {/* ---------- HERO ---------- */}
       <section className="relative overflow-hidden min-h-[560px] flex items-center px-6 py-20">
-  <img
-    src={cvLogoWatermark}
-    alt=""
-    aria-hidden="true"
-    className="absolute inset-0 h-full w-full object-cover"
-  />
+        <img
+          src={cvLogoWatermark}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
 
-  <div className="relative z-10 mx-auto w-full max-w-2xl">
-    <div className="rounded-3xl bg-white/85 backdrop-blur-sm px-8 py-10 text-center shadow-lg sm:px-12 sm:py-14">
-      <h1 className="gradient-heading font-display text-4xl leading-tight md:text-6xl">
-        Talent doesn't need
-        <br />
-        a scout in the room.
-      </h1>
+        <div className="relative z-10 mx-auto w-full max-w-2xl">
+          <div className="rounded-3xl bg-white/85 backdrop-blur-sm px-8 py-10 text-center shadow-lg sm:px-12 sm:py-14">
+            <h1 className="gradient-heading font-display text-4xl leading-tight md:text-6xl">
+              Talent doesn't need
+              <br />
+              a scout in the room.
+            </h1>
 
-      <p className="font-body mx-auto mt-5 max-w-md text-base text-cv-navy/70 md:text-lg">
-        Upload a shot. CourtVision reads the angle, lift and range.
-        No clipboard required.
-      </p>
+            <p className="font-body mx-auto mt-5 max-w-md text-base text-cv-navy/70 md:text-lg">
+              Upload a shot. CourtVision reads the angle, lift and range.
+              No clipboard required.
+            </p>
 
-      <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Link
-          to="/upload"
-          className="bg-cv-orange font-body w-full rounded-full px-7 py-3 text-center font-medium text-white shadow-sm transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cv-orange focus-visible:ring-offset-2 sm:w-auto"
-        >
-          Upload Footage
-        </Link>
-        <Link
-          to="/login"
-          className="font-body w-full rounded-full border border-cv-navy/20 px-7 py-3 text-center font-medium text-cv-navy transition hover:border-cv-navy/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cv-navy focus-visible:ring-offset-2 sm:w-auto"
-        >
-          Login
-        </Link>
-      </div>
-    </div>
-  </div>
-</section>
-
-      {/* ---------- THE PROBLEM ---------- */}
-      <section className="border-t border-cv-navy/10 px-6 py-16 md:py-20">
-        <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-3">
-          {problemPoints.map((p) => (
-            <div key={p.label} className="text-center sm:text-left">
-              <div className="gradient-heading font-display text-4xl md:text-5xl">
-                {p.stat}
-              </div>
-              <p className="font-body mt-2 text-sm text-cv-navy/65">{p.label}</p>
+            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                to="/register"
+                className="bg-cv-orange font-body w-full rounded-full px-7 py-3 text-center font-medium text-white shadow-sm transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cv-orange focus-visible:ring-offset-2 sm:w-auto"
+              >
+                Register
+              </Link>
+              <Link
+                to="/login"
+                className="font-body w-full rounded-full border border-cv-navy/20 px-7 py-3 text-center font-medium text-cv-navy transition hover:border-cv-navy/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cv-navy focus-visible:ring-offset-2 sm:w-auto"
+              >
+                Login
+              </Link>
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
@@ -203,10 +181,10 @@ export default function Landing() {
         </h2>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            to="/upload"
+            to="/register"
             className="bg-cv-orange font-body w-full rounded-full px-7 py-3 text-center font-medium text-white shadow-sm transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cv-orange focus-visible:ring-offset-2 sm:w-auto"
           >
-            Upload Footage
+            Register
           </Link>
           <Link
             to="/login"

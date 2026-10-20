@@ -3,6 +3,21 @@ import { Link } from "react-router-dom"
 import { api } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 
+// Helper for dynamic consistency badge colors
+function getConsistencyBadgeClass(rating) {
+  if (!rating) return ""
+  if (rating.includes("Elite")) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200"
+  }
+  if (rating.includes("High")) {
+    return "bg-blue-50 text-blue-700 border-blue-200"
+  }
+  if (rating.includes("Moderate")) {
+    return "bg-amber-50 text-amber-700 border-amber-200"
+  }
+  return "bg-orange-50 text-orange-700 border-orange-200"
+}
+
 // =========================================================
 // 1. ATHLETE PERFORMANCE DASHBOARD
 // =========================================================
@@ -142,7 +157,7 @@ function AthleteDashboard({ user }) {
           <div className="flex justify-between items-start">
             <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Release Angle</p>
             {consistencyRating && consistencyRating !== "No Data" && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getConsistencyBadgeClass(consistencyRating)}`}>
                 {consistencyRating}
               </span>
             )}
@@ -155,14 +170,14 @@ function AthleteDashboard({ user }) {
           </p>
         </div>
 
-        {/* Vertical Leap with Max & Average */}
+        {/* Jump Height with Max & Average */}
         <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
-          <p className="text-xs font-semibold uppercase text-cv-navy/50">Max Vertical Leap</p>
+          <p className="text-xs font-semibold uppercase text-cv-navy/50">Max Jump Height</p>
           <p className="text-2xl font-bold font-display text-cv-navy mt-1">
             {maxJump !== null ? `${maxJump} cm` : "—"}
           </p>
           <p className="text-xs text-cv-navy/60 mt-1">
-            {avgJump !== null ? `Average Leap: ${avgJump} cm (±${stdJump || 0} cm)` : "Vertical displacement"}
+            {avgJump !== null ? `Average Jump: ${avgJump} cm (±${stdJump || 0} cm)` : "Elevation off ground"}
           </p>
         </div>
 
@@ -200,7 +215,7 @@ function AthleteDashboard({ user }) {
                     : "text-cv-navy/60 hover:text-cv-navy"
                 }`}
               >
-                🚀 Vertical Leap (cm)
+                🚀 Jump Height (cm)
               </button>
               <button
                 onClick={() => setChartMetric("angle")}
@@ -561,7 +576,7 @@ function ScoutDashboard({ user }) {
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
-          <p className="text-xs font-semibold uppercase text-cv-navy/50">Top Vertical Leap</p>
+          <p className="text-xs font-semibold uppercase text-cv-navy/50">Top Jump Height</p>
           <p className="text-2xl font-bold font-display text-cv-orange mt-1">
             {topJump ? `${topJump} cm` : "—"}
           </p>
@@ -639,7 +654,7 @@ function ScoutDashboard({ user }) {
           {/* Min Jump Filter */}
           <div>
             <label className="block text-xs font-semibold uppercase text-cv-navy/60 mb-1">
-              Min Vertical Leap
+              Min Jump Height
             </label>
             <select
               value={minJumpFilter}
@@ -716,7 +731,7 @@ function ScoutDashboard({ user }) {
           <div className="py-16 bg-white rounded-3xl border border-cv-navy/10 text-center space-y-2">
             <p className="text-base font-bold text-cv-navy">No athletes found</p>
             <p className="text-xs text-cv-navy/50 max-w-sm mx-auto">
-              No prospects match your current filter parameters. Try broadening your county, position, or vertical leap requirements.
+              No prospects match your current filter parameters. Try broadening your county, position, or jump height requirements.
             </p>
             <button
               onClick={handleResetFilters}
@@ -792,7 +807,7 @@ function ScoutDashboard({ user }) {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-cv-navy/60">Max Vertical Leap:</span>
+                        <span className="text-cv-navy/60">Max Jump Height:</span>
                         <span className="font-bold text-cv-navy">
                           {perf.max_jump_height ? `${perf.max_jump_height} cm` : "—"}
                         </span>
@@ -888,7 +903,7 @@ function ScoutDashboard({ user }) {
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs">
-                  <p className="text-xs text-cv-navy/60">Max Vertical Leap</p>
+                  <p className="text-xs text-cv-navy/60">Max Jump Height</p>
                   <p className="text-xl font-bold font-display text-cv-navy mt-1">
                     {selectedAthlete.summary?.max_jump_height ? `${selectedAthlete.summary.max_jump_height} cm` : "—"}
                   </p>

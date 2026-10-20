@@ -340,7 +340,10 @@ def delete_video(video_id: int):
     try:
         file_path = Path(video.file_path)
         if file_path.exists():
-            file_path.unlink()
+            try:
+                file_path.unlink()
+            except OSError:
+                pass
 
         db.session.delete(video)
         db.session.commit()

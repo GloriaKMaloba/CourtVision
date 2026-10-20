@@ -3,6 +3,21 @@ import { useSearchParams, Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { api } from "../services/api"
 
+// Helper for dynamic consistency badge colors
+function getConsistencyBadgeClass(rating) {
+  if (!rating) return ""
+  if (rating.includes("Elite")) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200"
+  }
+  if (rating.includes("High")) {
+    return "bg-blue-50 text-blue-700 border-blue-200"
+  }
+  if (rating.includes("Moderate")) {
+    return "bg-amber-50 text-amber-700 border-amber-200"
+  }
+  return "bg-orange-50 text-orange-700 border-orange-200"
+}
+
 export default function ResultsPage() {
   const [searchParams] = useSearchParams()
   const videoId = searchParams.get("video_id")
@@ -220,7 +235,7 @@ export default function ResultsPage() {
               <div className="flex justify-between items-start">
                 <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Release Angle</p>
                 {consistencyRating && consistencyRating !== "No Data" && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getConsistencyBadgeClass(consistencyRating)}`}>
                     {consistencyRating}
                   </span>
                 )}
@@ -234,7 +249,7 @@ export default function ResultsPage() {
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs">
-              <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Vertical Leap</p>
+              <p className="text-xs font-semibold uppercase text-cv-navy/50">Avg Jump Height</p>
               <p className="text-2xl font-bold font-display text-cv-navy mt-1">
                 {avgJump ? `${avgJump} cm` : "N/A"}
               </p>
@@ -248,7 +263,7 @@ export default function ResultsPage() {
               <p className="text-2xl font-bold font-display text-cv-navy mt-1">
                 {maxJump ? `${maxJump} cm` : "N/A"}
               </p>
-              <p className="text-xs text-cv-navy/60 mt-1">Highest shot leap recorded</p>
+              <p className="text-xs text-cv-navy/60 mt-1">Highest shot elevation recorded</p>
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-cv-navy/10 shadow-2xs col-span-2 lg:col-span-1">
