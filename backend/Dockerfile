@@ -4,10 +4,12 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install OS libraries required for OpenCV, MediaPipe, and PostgreSQL client
+# Install OS libraries required for OpenCV, MediaPipe (libgles2, libegl1, libgl1), and PostgreSQL client
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1 \
+    libgles2 \
+    libegl1 \
     libglib2.0-0 \
     ffmpeg \
     libpq-dev \
@@ -28,4 +30,5 @@ RUN mkdir -p /app/uploads
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+# Start server using Gunicorn binding to Render's dynamic PORT
+CMD ["sh", "-c", "gunicorn --workers 1 --timeout 180 --bind 0.0.0.0:${PORT:-5000} run:app"]

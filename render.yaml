@@ -1,12 +1,11 @@
 services:
-  # 1. Backend Flask API & Computer Vision Processing
+  # 1. Backend Flask API & Computer Vision Processing (Docker with OpenGL/MediaPipe libs)
   - type: web
     name: courtvision-backend
-    env: python
-    rootDir: backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     plan: free
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: gunicorn --workers 1 --timeout 120 run:app
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -20,8 +19,6 @@ services:
         value: "24"
       - key: FLASK_DEBUG
         value: "False"
-      - key: PYTHON_VERSION
-        value: 3.11.9
 
   # 2. Frontend React Web Application (Static CDN - always free)
   - type: web
