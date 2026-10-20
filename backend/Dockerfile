@@ -3,6 +3,7 @@ FROM python:3.11-slim
 # Prevent Python from writing .pyc and enable unbuffered output
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PORT=10000
 
 # Install OS libraries required for OpenCV, MediaPipe (libgles2, libegl1, libgl1), and PostgreSQL client
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,7 +29,7 @@ COPY . /app/
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
-EXPOSE 5000
+EXPOSE 10000
 
-# Start server using Gunicorn binding to Render's dynamic PORT
-CMD ["sh", "-c", "gunicorn --workers 1 --timeout 180 --bind 0.0.0.0:${PORT:-5000} run:app"]
+# Start server using Gunicorn binding to Render's 10000 port with live logging
+CMD ["sh", "-c", "gunicorn --workers 1 --timeout 180 --access-logfile - --error-logfile - --bind 0.0.0.0:${PORT:-10000} run:app"]
