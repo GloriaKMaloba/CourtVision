@@ -1,0 +1,61 @@
+services:
+  # 1. PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: courtvision_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-courtvision}
+      POSTGRES_USER: ${POSTGRES_USER:-courtvision_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-courtvision_secure_pass_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-courtvision_user} -d ${POSTGRES_DB:-courtvision}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Flask API & Computer Vision Processing Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: courtvision_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-courtvision_user}:${POSTGRES_PASSWORD:-courtvision_secure_pass_2026}@db:5432/${POSTGRES_DB:-courtvision}
+      SECRET_KEY: ${SECRET_KEY:-courtvision-capstone-prod-secret-key-2026}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-courtvision-jwt-prod-signing-key-2026}
+      JWT_EXPIRATION_HOURS: 24
+      UPLOAD_FOLDER: /app/uploads
+      FLASK_DEBUG: "False"
+      PORT: 5000
+    volumes:
+      - video_uploads:/app/uploads
+    ports:
+      - "5000:5000"
+
+  # 3. Vite React Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: courtvision_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "5173:80"
+
+volumes:
+  pgdata:
+    driver: local
+  video_uploads:
+    driver: local

@@ -1,0 +1,50 @@
+services:
+  # 1. Backend Flask API & Computer Vision Processing
+  - type: web
+    name: courtvision-backend
+    env: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: courtvision-postgres
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: FLASK_DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  # 2. Frontend React Web Application
+  - type: web
+    name: courtvision-frontend
+    env: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: courtvision-backend
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  # 3. Managed PostgreSQL Cloud Database Service
+  - name: courtvision-postgres
+    databaseName: courtvision
+    user: courtvision_user
+    plan: free
