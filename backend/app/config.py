@@ -20,18 +20,19 @@ class Config:
         if database_url.startswith("postgresql://") and not database_url.startswith("postgresql+"):
             database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         SQLALCHEMY_DATABASE_URI = database_url
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+            "pool_recycle": 280,
+            "pool_timeout": 20,
+        }
     else:
         sqlite_path = BASE_DIR / "courtvision.db"
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_path.as_posix()}"
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+        }
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    # Engine options for cloud PostgreSQL connection resilience
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,  # Auto-reconnect if database closed idle connection
-        "pool_recycle": 280,    # Recycle connections before cloud firewalls drop them
-        "pool_timeout": 20,
-    }
 
     # Video uploads
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", str(BASE_DIR / "uploads" / "videos"))

@@ -33,23 +33,28 @@ def make_landmarker():
     )
     return mp.tasks.vision.PoseLandmarker.create_from_options(opts)
 
-def extract_landmarks(video_path: str, max_width: int = 640):
+def extract_landmarks(video_path: str, max_width: int = 480, target_fps: float = 20.0, max_duration_sec: float = 90.0, progress_callback=None):
     """
-    Reads video frames and runs MediaPipe Pose Landmarker.
-    Returns (lms, fps, width, height, duration)
+    Reads video frames and runs MediaPipe Pose Landmarker with frame-rate optimization.
+    Returns (lms, effective_fps, orig_w, orig_h, duration)
     lms has shape (frames, 33, 3) where columns are [x_px, y_px, visibility].
     """
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise ValueError(f"Could not open video file at {video_path}")
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    native_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps if fps > 0 else 0.0
+    duration = total_frames / native_fps if native_fps > 0 else 0.0
 
-    # Determine if resizing is needed for speed
+    # Optimize frame processing: downsample FPS (e.g. 60 FPS -> 20 FPS = 3x faster)
+    frame_step = max(1, round(native_fps / target_fps))
+    effective_fps = native_fps / frame_step
+    max_frames_to_read = int(min(total_frames, max_duration_sec * native_fps)) if total_frames > 0 else int(max_duration_sec * native_fps)
+
+    # Determine if resizing is needed for speed (480px provides optimal landmark precision)
     scale = 1.0
     if orig_w > max_width and max_width > 0:
         scale = max_width / orig_w
@@ -58,27 +63,44 @@ def extract_landmarks(video_path: str, max_width: int = 640):
 
     frames = []
     with make_landmarker() as landmarker:
-        idx = 0
+        frame_idx = 0
+        processed_count = 0
+        last_progress_pct = -1
+
         while True:
             ok, bgr = cap.read()
-            if not ok:
+            if not ok or frame_idx >= max_frames_to_read:
                 break
-            if scale != 1.0:
-                bgr = cv2.resize(bgr, (target_w, target_h), interpolation=cv2.INTER_AREA)
 
-            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            res = landmarker.detect_for_video(mp_image, int(idx * 1000 // fps))
-            arr = np.full((33, 3), np.nan, dtype=np.float32)
-            if res.pose_landmarks and len(res.pose_landmarks) > 0:
-                for j, lm in enumerate(res.pose_landmarks[0]):
-                    arr[j] = (lm.x * target_w, lm.y * target_h, lm.visibility)
-            frames.append(arr)
-            idx += 1
+            # Only process every Nth frame based on target_fps
+            if frame_idx % frame_step == 0:
+                if scale != 1.0:
+                    bgr = cv2.resize(bgr, (target_w, target_h), interpolation=cv2.INTER_AREA)
+
+                rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                timestamp_ms = int((processed_count * 1000) / effective_fps)
+                res = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+                arr = np.full((33, 3), np.nan, dtype=np.float32)
+                if res.pose_landmarks and len(res.pose_landmarks) > 0:
+                    for j, lm in enumerate(res.pose_landmarks[0]):
+                        arr[j] = (lm.x * target_w, lm.y * target_h, lm.visibility)
+                frames.append(arr)
+                processed_count += 1
+
+                # Live progress update: map to 50% -> 90%
+                if progress_callback and max_frames_to_read > 0:
+                    pct = int(50 + (frame_idx / max_frames_to_read) * 40)
+                    if pct != last_progress_pct and pct % 5 == 0:
+                        progress_callback(pct)
+                        last_progress_pct = pct
+
+            frame_idx += 1
     cap.release()
 
     lms = np.stack(frames) if frames else np.zeros((0, 33, 3), dtype=np.float32)
-    return lms, float(fps), orig_w, orig_h, duration
+    return lms, float(effective_fps), orig_w, orig_h, duration
 
 def interp_nans(a):
     """Linear-interpolate NaNs along time for each column of a (T, k) array."""
