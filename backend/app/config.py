@@ -16,6 +16,9 @@ class Config:
         # Standardize postgres:// to postgresql:// for SQLAlchemy compatibility
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
+        # Ensure driver compatibility with psycopg2 if unspecified
+        if database_url.startswith("postgresql://") and not database_url.startswith("postgresql+"):
+            database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         SQLALCHEMY_DATABASE_URI = database_url
     else:
         sqlite_path = BASE_DIR / "courtvision.db"
