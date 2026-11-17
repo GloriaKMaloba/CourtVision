@@ -26,7 +26,6 @@ function AthleteDashboard({ user }) {
   const [metricsData, setMetricsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [chartMetric, setChartMetric] = useState("jump") // 'jump' or 'angle'
 
   const fetchData = async () => {
     try {
@@ -77,9 +76,6 @@ function AthleteDashboard({ user }) {
   const threePointers = metricsData?.three_pointers ?? 0
   const twoPointPct = metricsData?.two_point_pct ?? 0
   const threePointPct = metricsData?.three_point_pct ?? 0
-
-  // Historical timeline data for progression chart
-  const timeline = metricsData?.timeline || []
 
   return (
     <div className="space-y-8">
@@ -193,61 +189,6 @@ function AthleteDashboard({ user }) {
         </div>
       </div>
 
-      {/* Historical Trend Progression Chart */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-cv-navy/10 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-          <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-cv-orange">
-              Biomechanical Progression
-            </span>
-            <h2 className="text-xl font-display font-bold text-cv-navy mt-0.5">
-              Historical Performance Trajectory
-            </h2>
-          </div>
-
-          {timeline.length > 1 && (
-            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
-              <button
-                onClick={() => setChartMetric("jump")}
-                className={`px-3 py-1.5 rounded-lg transition ${
-                  chartMetric === "jump"
-                    ? "bg-white text-cv-navy shadow-xs font-bold"
-                    : "text-cv-navy/60 hover:text-cv-navy"
-                }`}
-              >
-                🚀 Jump Height (cm)
-              </button>
-              <button
-                onClick={() => setChartMetric("angle")}
-                className={`px-3 py-1.5 rounded-lg transition ${
-                  chartMetric === "angle"
-                    ? "bg-white text-cv-navy shadow-xs font-bold"
-                    : "text-cv-navy/60 hover:text-cv-navy"
-                }`}
-              >
-                📐 Release Angle (°)
-              </button>
-            </div>
-          )}
-        </div>
-
-        {timeline.length <= 1 ? (
-          <div className="py-12 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-center space-y-2">
-            <p className="text-sm font-semibold text-cv-navy">
-              {timeline.length === 1
-                ? "1 session recorded. Upload more drills to visualize your improvement trajectory over time!"
-                : "No completed shooting drills yet. Upload your first clip to start tracking your development curve."}
-            </p>
-            <p className="text-xs text-cv-navy/50 max-w-sm mx-auto">
-              Our computer vision pipeline automatically tracks session-by-session consistency and vertical explosiveness.
-            </p>
-          </div>
-        ) : (
-          <div className="pt-4">
-            <TrendChart timeline={timeline} metricKey={chartMetric} />
-          </div>
-        )}
-      </div>
 
       {/* Video Table & Session History */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-cv-navy/10 shadow-sm space-y-4">
@@ -374,74 +315,6 @@ function AthleteDashboard({ user }) {
   )
 }
 
-// SVG Historical Progression Line Chart
-function TrendChart({ timeline, metricKey }) {
-  if (!timeline || timeline.length === 0) return null
-
-  const isJump = metricKey === "jump"
-  const values = timeline.map((t) => (isJump ? t.avg_jump_height || 0 : t.avg_shooting_angle || 0))
-  const dates = timeline.map((t) => t.created_at ? new Date(t.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Session")
-
-  const minVal = Math.max(0, Math.floor(Math.min(...values) * 0.9))
-  const maxVal = Math.ceil(Math.max(...values) * 1.1) || (isJump ? 60 : 150)
-  const range = maxVal - minVal || 1
-
-  const width = 600
-  const height = 180
-  const padX = 40
-  const padY = 25
-
-  const points = timeline.map((_, i) => {
-    const x = padX + (i / (timeline.length - 1 || 1)) * (width - 2 * padX)
-    const y = height - padY - ((values[i] - minVal) / range) * (height - 2 * padY)
-    return { x, y, val: values[i], date: dates[i], title: timeline[i].title }
-  })
-
-  const polylineStr = points.map((p) => `${p.x},${p.y}`).join(" ")
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44 select-none">
-        {/* Y Grid lines */}
-        {[0, 0.5, 1].map((ratio, idx) => {
-          const y = height - padY - ratio * (height - 2 * padY)
-          const valLabel = Math.round(minVal + ratio * range)
-          return (
-            <g key={idx}>
-              <line x1={padX} y1={y} x2={width - padX} y2={y} stroke="#E5E7EB" strokeDasharray="3 3" />
-              <text x={padX - 8} y={y + 4} fontSize="9" fill="#9CA3AF" textAnchor="end">
-                {valLabel}{isJump ? "cm" : "°"}
-              </text>
-            </g>
-          )
-        })}
-
-        {/* Trend line */}
-        <polyline
-          fill="none"
-          stroke={isJump ? "#E05A1B" : "#1B2A4A"}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          points={polylineStr}
-        />
-
-        {/* Data points */}
-        {points.map((p, i) => (
-          <g key={i}>
-            <circle cx={p.x} cy={p.y} r="5" fill="#FFFFFF" stroke={isJump ? "#E05A1B" : "#1B2A4A"} strokeWidth="2.5" />
-            <text x={p.x} y={p.y - 10} fontSize="10" fontWeight="bold" fill={isJump ? "#E05A1B" : "#1B2A4A"} textAnchor="middle">
-              {p.val}{isJump ? "cm" : "°"}
-            </text>
-            <text x={p.x} y={height - 6} fontSize="9" fill="#6B7280" textAnchor="middle">
-              {p.date}
-            </text>
-          </g>
-        ))}
-      </svg>
-    </div>
-  )
-}
 
 // =========================================================
 // 2. SCOUT TALENT DISCOVERY PORTAL

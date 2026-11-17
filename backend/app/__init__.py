@@ -28,6 +28,7 @@ def create_app(config_class=Config):
     app.register_blueprint(scout_bp, url_prefix="/api/scouts", name="scouts_alias_bp")
     app.register_blueprint(admin_bp)
     app.register_blueprint(athlete_bp)
+    app.register_blueprint(athlete_bp, url_prefix="/api/athlete", name="athlete_alias_bp")
 
     # Ensure uploads directory exists
     upload_folder = Path(app.config["UPLOAD_FOLDER"])

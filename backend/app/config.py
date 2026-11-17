@@ -16,10 +16,21 @@ class Config:
         # Standardize postgres:// to postgresql:// for SQLAlchemy compatibility
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
+        # Ensure driver compatibility with psycopg2 if unspecified
+        if database_url.startswith("postgresql://") and not database_url.startswith("postgresql+"):
+            database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         SQLALCHEMY_DATABASE_URI = database_url
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+            "pool_recycle": 280,
+            "pool_timeout": 20,
+        }
     else:
         sqlite_path = BASE_DIR / "courtvision.db"
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_path.as_posix()}"
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+        }
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
